@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     var IR = glsl.IR;
     var sprintf = StdIO.sprintf;
 
-    var irs, ir, swizzles, conditional, state;
+    var irs, ir, swizzles, conditional, state, indent = 0;
 
     conditional = [];
 
@@ -44,6 +44,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         var i, stmt;
 
         state.symbols.push_scope();
+        irs.push( glsl.ast.spacer );
+        add('{');
+        indent++;
+        add( glsl.ast.lineBreak );
 
         for (i = 0; i < cs.statements.length; i++) {
 
@@ -64,11 +68,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                     break;
 
                 default:
-                    throw_error(sprintf("Could not unknown translate statement type %s", stmt.typeOf()), stmt);
+                    throw (sprintf("Could not unknown translate statement type %s", stmt.typeOf()), stmt);
             }
         }
 
         state.symbols.pop_scope();
+
+        indent--;
+        add('}');
     }
 
 
@@ -79,63 +86,64 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      * @param   ast_node    ast_node that represents the constructor components
      */
     function constructor(e, op, se) {
-        var ds, di, si, sei, ses, d, s, ir;
+        irs.push( 'Define me constructor!' );
+        //var ds, di, si, sei, ses, d, s, ir;
 
-        ds = glsl.type.size[op.type_specifier];
-        si = 0;
-        sei = 0;
+        //ds = glsl.type.size[op.type_specifier];
+        //si = 0;
+        //sei = 0;
 
-        e.Type = op.type_specifier;
-        e.Dest = [];
+        //e.Type = op.type_specifier;
+        //e.Dest = [];
 
-        e.Dest = irs.getTemp('$tempv');
+        //e.Dest = irs.getTemp('$tempv');
 
-        for (di = 0; di < ds; di++) {
+        //for (di = 0; di < ds; di++) {
 
-            //build next subexpression
-            if (si === 0) {
+            ////build next subexpression
+            //if (si === 0) {
 
-                if (!se[sei]) {
-                    throw_error("Not enough parameters to constructor", e);
-                }
+                //if (!se[sei]) {
+                    //throw ("Not enough parameters to constructor", e);
+                //}
 
-                expression(se[sei]);
-                ses = glsl.type.size[se[sei].Type];
-            }
+                //expression(se[sei]);
+                //ses = glsl.type.size[se[sei].Type];
+            //}
 
-            //need to add support for > vec4
+            ////need to add support for > vec4
 
-            //compute destination
-            d = e.Dest;
-            d = sprintf("%s.%s", d, swizzles[0][di]);
+            ////compute destination
+            //d = e.Dest;
+            //d = sprintf("%s.%s", d, swizzles[0][di]);
 
-            //compute source
-            s = splitOperand(se[sei].Dest);
+            ////compute source
+            //s = splitOperand(se[sei].Dest);
 
-            //expression was to just get the identifier, so add the appropriate swizzle,
-            //else, either a number, or the correct swizzle already been set
-            if (s[1]) {
-                s = s.join(".");
-            } else {
-                //value
-                if (s[0].match(/^\-?[0-9]+(\.[0-9]+)?/)) {
-                    s = s[0];
-                } else {
-                    s = sprintf("%s.%s", s[0], swizzles[0][si]);
-                }
-            }
+            ////expression was to just get the identifier, so add the appropriate swizzle,
+            ////else, either a number, or the correct swizzle already been set
+            //if (s[1]) {
+                //s = s.join(".");
+            //} else {
+                ////value
+                //if (s[0].match(/^\-?[0-9]+(\.[0-9]+)?/)) {
+                    //s = s[0];
+                //} else {
+                    //s = sprintf("%s.%s", s[0], swizzles[0][si]);
+                //}
+            //}
 
-            ir = new IR('MOV', d, s);
-            irs.push(ir);
+            //ir = new IR('MOV', d, s);
+            //irs.push(ir);
 
-            //used up all components in current expression, move on to the next one
-            si++;
-            if (si >= ses) {
-                si = 0;
-                sei++;
-            }
+            ////used up all components in current expression, move on to the next one
+            //si++;
+            //if (si >= ses) {
+                //si = 0;
+                //sei++;
+            //}
 
-        }
+        //}
     }
 
     /**
@@ -146,48 +154,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function declarator_list(dl) {
         var type, qualifier, qualifier_name, i, decl, name, entry, constant;
 
-        type = dl.type;
-        if (type.qualifier) {
-            qualifier = type.qualifier.flags.q;
-            qualifier_name = glsl.type.qualifiers[qualifier];
+        var out = [ dl.type.specifier.type_name ];
+
+        if( dl.type.qualifier ) {
+            out.push( glsl.ast.type_qualifier.flagLookup[ dl.type.qualifier.flags.q ] );
         }
 
         for (i = 0; i < dl.declarations.length; i++) {
-
             decl = dl.declarations[i];
             name = decl.identifier;
-
-            //add symbol table entry
-            entry = state.symbols.add_variable(name);
-            entry.type = type.specifier.type_specifier;
-            entry.qualifier = qualifier;
-            entry.qualifier_name = qualifier_name;
-
-            constant = (qualifier == glsl.ast.type_qualifier.flags.constant);
-
-            if (decl.initializer) {
-
-                //destination node is not created in parser, so need to create it here to keep things clean
-                name = {
-                    Dest : name,
-                    Type : entry.type
-                };
-
-                expression(decl.initializer);
-
-                //@todo: generate constants at compile time (this may be able to be taken care of in the generator)
-                if (constant) {
-                    entry.constant = decl.initializer.Dest;
-                } else {
-                    expression_assign(decl, [name, decl.initializer], true);
-                }
-
-            } else {
-                if (constant) {
-                    throw_error("Declaring const without initialier", decl);
-                }
-            }
+            out.push( name );
         }
+
+        addLine( space( out ) );
     }
 
     /**
@@ -215,11 +194,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         //cast
         if (e.typeOf('ast_type_specifier')) {
-            e.Type = e.type_specifier;
+            type_specifier( e );
+            //e.Type = e.type_specifier;
             return;
         }
 
-        throw_error("Could not translate unknown expression type", e);
+        throw ("Could not translate unknown expression type", e);
     }
 
     /**
@@ -230,51 +210,53 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function expression_assign(e, se, local) {
         var cond, ir, temp, size, slots, swz, i, entry;
 
-        if (e.oper == glsl.ast.operators.add_assign) {
-            se[1].oper = glsl.ast.operators.add;
-            expression_generate(se[1], [se[0], se[1]], 2);
-        }
+        irs.push( 'Define expression_assign' );
 
-        if (conditional.length > 0) {
-            cond = conditional[conditional.length - 1];
-        }
+        //if (e.oper == glsl.ast.operators.add_assign) {
+            //se[1].oper = glsl.ast.operators.add;
+            //expression_generate(se[1], [se[0], se[1]], 2);
+        //}
 
-        if (se[0].Type != se[1].Type) {
-            throw_error(sprintf("Could not assign value of type %s to %s", glsl.type.names[se[1].Type], glsl.type.names[se[0].Type]), e);
-        }
-        e.Type = se[0].Type;
+        //if (conditional.length > 0) {
+            //cond = conditional[conditional.length - 1];
+        //}
 
-        entry = state.symbols.get_variable(se[0].Dest);
-        if (entry.constant) {
-            throw_error(sprintf("Cannot assign value to constant %s", se[0].Dest), e);
-        }
+        //if (se[0].Type != se[1].Type) {
+            //throw (sprintf("Could not assign value of type %s to %s", glsl.type.names[se[1].Type], glsl.type.names[se[0].Type]), e);
+        //}
+        //e.Type = se[0].Type;
 
-        size = glsl.type.size[e.Type];
-        slots = glsl.type.slots[e.Type];
+        //entry = state.symbols.get_variable(se[0].Dest);
+        //if (entry.constant) {
+            //throw (sprintf("Cannot assign value to constant %s", se[0].Dest), e);
+        //}
 
-        //get the swizzle for each slot
-        swz = swizzles[0].substring(0, 4 - (((slots * 4) - size) / slots));
+        //size = glsl.type.size[e.Type];
+        //slots = glsl.type.slots[e.Type];
 
-        //all components are used up in all slots
-        if (swz == swizzles[0]) {
-            swz = "";
-        }
+        ////get the swizzle for each slot
+        //swz = swizzles[0].substring(0, 4 - (((slots * 4) - size) / slots));
 
-        for (i = 0; i < slots; i++) {
+        ////all components are used up in all slots
+        //if (swz == swizzles[0]) {
+            //swz = "";
+        //}
 
-            if (cond && !local) {
-                ir = new IR('CMP', se[0].Dest, "-"+cond, se[1].Dest, se[0].Dest);
-                ir.addOffset(i);
-                ir.setSwizzle(swz);
-                irs.push(ir);
+        //for (i = 0; i < slots; i++) {
 
-            } else {
-                ir = new IR('MOV', se[0].Dest, se[1].Dest);
-                ir.addOffset(i);
-                ir.setSwizzle(swz);
-                irs.push(ir);
-            }
-        }
+            //if (cond && !local) {
+                //ir = new IR('CMP', se[0].Dest, "-"+cond, se[1].Dest, se[0].Dest);
+                //ir.addOffset(i);
+                //ir.setSwizzle(swz);
+                //irs.push(ir);
+
+            //} else {
+                //ir = new IR('MOV', se[0].Dest, se[1].Dest);
+                //ir.addOffset(i);
+                //ir.setSwizzle(swz);
+                //irs.push(ir);
+            //}
+        //}
     }
 
     /**
@@ -285,45 +267,47 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function expression_field(e, se) {
         var field, i, s, swz, new_swz, base, ir, dest, src;
 
-        //pick swizzle set
-        field = e.primary_expression.identifier;
-        for (i = 0; i < swizzles.length; i++) {
-            if (swizzles[i].indexOf(field[0]) != -1) {
-                swz = swizzles[i];
-                break;
-            }
-        }
+        irs.push( 'Define expression_field' );
 
-        //check that all fields are in same swizzle set
-        if (swz) {
-            new_swz = "";
-            for (i = 0; i < field.length; i++) {
-                s = swz.indexOf(field[i]);
-                if (s == -1) {
-                    swz = false;
-                    break;
-                }
-                //use corresponding "standard" fields (xyzw)
-                new_swz += swizzles[0][s];
-            }
-        }
+        ////pick swizzle set
+        //field = e.primary_expression.identifier;
+        //for (i = 0; i < swizzles.length; i++) {
+            //if (swizzles[i].indexOf(field[0]) != -1) {
+                //swz = swizzles[i];
+                //break;
+            //}
+        //}
 
-        if (swz) {
+        ////check that all fields are in same swizzle set
+        //if (swz) {
+            //new_swz = "";
+            //for (i = 0; i < field.length; i++) {
+                //s = swz.indexOf(field[i]);
+                //if (s == -1) {
+                    //swz = false;
+                    //break;
+                //}
+                ////use corresponding "standard" fields (xyzw)
+                //new_swz += swizzles[0][s];
+            //}
+        //}
 
-            e.Type = makeType(baseType(se[0].Type), new_swz.length);
-            e.Dest = se[0].Dest;
+        //if (swz) {
 
-            if (new_swz.length > 4 || !e.Type) {
-                throw_error(sprintf("Invalid field selection %s.%s", se[0], e.primary_expression.identifier), e);
-            }
+            //e.Type = makeType(baseType(se[0].Type), new_swz.length);
+            //e.Dest = se[0].Dest;
 
-            //if it's an in-order swizzle, just use the identifier
-            if (swizzles[0].substring(0, new_swz.length) == new_swz) {
-                return;
-            }
+            //if (new_swz.length > 4 || !e.Type) {
+                //throw (sprintf("Invalid field selection %s.%s", se[0], e.primary_expression.identifier), e);
+            //}
 
-            e.Dest = sprintf("%s.%s", e.Dest, new_swz);
-        }
+            ////if it's an in-order swizzle, just use the identifier
+            //if (swizzles[0].substring(0, new_swz.length) == new_swz) {
+                //return;
+            //}
+
+            //e.Dest = sprintf("%s.%s", e.Dest, new_swz);
+        //}
     }
 
     /**
@@ -333,6 +317,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      */
     function expression_function(e) {
         var i, func, se, def, def_names, dest, entry;
+
+        irs.push( 'Define expression_function' );
 
         func = e.subexpressions[0].primary_expression.identifier;
         def = [];
@@ -347,16 +333,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
             dest.push(se.Dest);
         }
 
-        entry = glsl.state.symbols.get_function(func, null, def);
-        if (!entry) {
-            throw_error(sprintf("Function %s(%s) is not defined", func, def_names.join(",")), e);
-        }
+        //entry = glsl.state.symbols.get_function(func, null, def);
+        //if (!entry) {
+            //throw (sprintf("Function %s(%s) is not defined", func, def_names.join(",")), e);
+        //}
 
-        e.Type = entry.type;
-        e.Dest = IRS.getTemp('$tempv');
-        dest.unshift(e.Dest);
+        //e.Type = entry.type;
+        //e.Dest = IRS.getTemp('$tempv');
+        //dest.unshift(e.Dest);
 
-        parseCode(entry.code, dest);
+        //parseCode(entry.code, dest);
     }
 
     /**
@@ -368,31 +354,32 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function expression_generate(e, se, len) {
         var table, error, types, dest, i;
 
-        if (!(table = glsl.ir_operation_table[e.oper])) {
-            throw_error(sprintf("Could not generate operation %s", glsl.ast.op_names[e.oper]), e);
-            return;
-        }
+        //debugger;
+        irs.push( '**' );
 
-        e.Dest = IRS.getTemp('$tempv');
-        dest = [e.Dest];
+        //if (!(table = glsl.ir_operation_table[e.oper])) {
+            //throw (sprintf("Could not generate operation %s", glsl.ast.op_names[e.oper]), e);
+        //}
 
-        types = [];
-        for (i = 0; i < len; i++) {
-            types.push(glsl.type.names[se[i].Type]);
-            if (!(table = table[se[i].Type])) {
-                throw_error(sprintf("Could not apply operation %s to %s", glsl.ast.op_names[e.oper], types.join(", ")), e);
-                return;
-            }
-            dest.push(se[i].Dest);
-        }
+        //e.Dest = IRS.getTemp('$tempv');
+        //dest = [e.Dest];
 
-        e.Type = table.type;
+        //types = [];
+        //for (i = 0; i < len; i++) {
+            //types.push(glsl.type.names[se[i].Type]);
+            //if (!(table = table[se[i].Type])) {
+                //throw sprintf("Could not apply operation %s to %s %s", glsl.ast.op_names[e.oper], types.join(", "), e);
+            //}
+            //dest.push(se[i].Dest);
+        //}
+
+        //e.Type = table.type;
 
         //if (len <= 4) {
             //e.Dest += sprintf(".%s", swizzles[0].substring(0, glsl.type.size[e.Type]));
         //}
 
-        parseCode(table.code, dest);
+        //parseCode(table.code, dest);
     }
 
     /**
@@ -463,7 +450,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                 break;
 
             default:
-                throw_error(sprintf("Could not translate unknown expression %s (%s)", e.typeOf(), glsl.ast.op_names[e.oper]), e);
+                throw (sprintf("Could not translate unknown expression %s (%s)", e.typeOf(), glsl.ast.op_names[e.oper]), e);
         }
     }
 
@@ -476,43 +463,44 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function expression_simple(e) {
         var name, entry, t;
 
+        //irs.push( 'Defineme expression_simple!' );
+
         //identifier
         if (e.primary_expression.identifier) {
 
-            //lookup identifier in symbol table
-            name = e.primary_expression.identifier;
-            entry = state.symbols.get_variable(name) || state.symbols.get_function(name);
+            irs.push( e.primary_expression.identifier );
 
-            if (!entry || !entry.type) {
-                throw_error(sprintf("%s is undefined", name), e);
-            }
+            ////lookup identifier in symbol table
+            //name = e.primary_expression.identifier;
+            //entry = state.symbols.get_variable(name) || state.symbols.get_function(name);
 
-            e.Type = entry.type;
+            //if (!entry || !entry.type) {
+                //throw (sprintf("%s is undefined", name), e);
+            //}
 
-            if (entry.constant) {
-                e.Dest = entry.constant;
-            } else {
-                e.Dest = entry.name;
-            }
+            //e.Type = entry.type;
 
+            //if (entry.constant) {
+                //e.Dest = entry.constant;
+            //} else {
+                //e.Dest = entry.name;
+            //}
+
+            return;
+            //
+        ////float constant
+        } else if (typeof e.primary_expression.float_constant != 'undefined') {
+            //e.Type = glsl.type.float;
+            //e.Dest = makeFloat(e.primary_expression.float_constant);
+            return;
+        ////int constant
+        } else if (typeof e.primary_expression.int_constant != 'undefined') {
+            //e.Type = glsl.type.int;
+            //e.Dest = makeFloat(e.primary_expression.int_constant);
             return;
         }
 
-        //float constant
-        if (typeof e.primary_expression.float_constant != 'undefined') {
-            e.Type = glsl.type.float;
-            e.Dest = makeFloat(e.primary_expression.float_constant);
-            return;
-        }
-
-        //int constant
-        if (typeof e.primary_expression.int_constant != 'undefined') {
-            e.Type = glsl.type.int;
-            e.Dest = makeFloat(e.primary_expression.int_constant);
-            return;
-        }
-
-        throw_error("Cannot translate unkown simple expression type", e);
+        throw ("Cannot translate unkown simple expression type" + e);
     }
 
     /**
@@ -523,17 +511,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function _function(f) {
         var i, name, param, entry;
 
-        //generate
-        name = f.identifier;
-        entry = state.symbols.get_function(name);
+        var code = [];
+
+        // void main
+        code.push( space( f.return_type.specifier.type_name, f.identifier ) );
+        code.push( '(' );
 
         //generate param list
         for (i = 0; i < f.parameters.length; i++) {
             param = f.parameters[i];
-            if (param.is_void || !param.identifier) {
-                break;
-            }
+            code.push( param.type.specifier.type_name );
+            //if (param.is_void || !param.identifier) {
+                //break;
+            //}
         }
+
+        code.push( ')' );
+
+        irs.push( code.join('') );
+
+        //generate
+        //name = f.identifier;
+        //entry = state.symbols.get_function(name);
+
     }
 
     /**
@@ -554,8 +554,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         //handle function body
         compound_statement(fd.body);
 
-        ir = new IR("RET");
-        irs.push(ir);
+        //ir = new IR("RET");
     }
 
     /**
@@ -566,22 +565,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function selection_statement(stmt) {
         var ir, cond;
 
+        addLineStart( 'if' );
+        add( '(' );
+        add( glsl.ast.spacer );
+
         expression(stmt.condition);
+        add( ')' );
+        add( glsl.ast.spacer );
+
         //@todo: add a check that condition is bool type?
 
         cond = sprintf("%s.x", IRS.getTemp('$tempv'));
 
         //set a flag based on the result
-        ir = new IR('SLT', cond, '0.0', sprintf("%s.x", stmt.condition.Dest));
-        irs.push(ir);
+        //ir = new IR('SLT', cond, '0.0', sprintf("%s.x", stmt.condition.Dest));
+        //irs.push( 'Dfine me too selection_statement' );
 
         //if conditional is set, all subsequent output assignments will use the condition result to set using (MAD dest, cond, (new - old), old)
         conditional.push(cond);
         compound_statement(stmt.then_statement);
 
         if (stmt.else_statement) {
-            ir = new IR('SGE', cond, "0.0", cond);
-            irs.push(ir);
+
+            irs.push( glsl.ast.spacer );
+            irs.push('else');
+            irs.push( glsl.ast.spacer );
+
+            expression(stmt.condition);
+
+            //ir = new IR('SGE', cond, "0.0", cond);
+            //irs.push(ir);
             compound_statement(stmt.else_statement);
         }
 
@@ -605,7 +618,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                 type_specifier(tu);
                 break;
             default:
-                throw_error(sprintf('Unknown translation unit %s', tu.typeOf()), tu);
+                throw (sprintf('Unknown translation unit %s', tu.typeOf()), tu);
         }
     }
 
@@ -615,10 +628,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      * @param   ast_node    ast_node that represents a type specifier
      */
     function type_specifier(ts) {
-        if (ts.is_precision_statement) {
-            return;
+        var precision = glsl.ast.precisionLookup[ ts.precision ],
+            out = [];
+
+        if( precision && precision !== 'none' ) {
+            out.push( 'precision', precision );
         }
-        throw_error("Cannot generate type specifier", ts);
+
+        irs.push(
+            space( out.concat( ts.type_name ) )
+        );
     }
 
     /**
@@ -629,7 +648,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      *
      * @return  string
      */
-    function throw_error(msg, n) {
+    function throw_error (msg, n) {
         if (n && n.location) {
             msg = sprintf("%s at line %s, column %s", msg, n.location.line, n.location.column);
         }
@@ -785,24 +804,62 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         symbols(state.symbols);
 
-        try {
-            for (i = 0; i < state.translation_unit.length; i++) {
-                translation_unit(state.translation_unit[i]);
-            }
-        } catch (e) {
-            glsl.errors.push(e);
-        }
-
-        if (glsl.errors.length > 0) {
-            return false;
+        for (i = 0; i < state.translation_unit.length; i++) {
+            translation_unit(state.translation_unit[i]);
         }
 
         return irs;
     }
 
+    // TODO: We could cache this
+    function insideOut( object ) {
+        var reversed = {};
+
+        for( var key in object ) {
+            reversed[ object[ key ] ] = key;
+        }
+
+        return reversed;
+    }
+
+    function space() {
+        return Array.prototype.join.call( typeof arguments[0] === 'object' ? arguments[0] : arguments, ' ' );
+    }
+
+    glsl.ast.precisionLookup = insideOut( glsl.ast.precision );
+    glsl.ast.type_qualifier.flagLookup = insideOut( glsl.ast.type_qualifier.flags );
+
     /**
      * External interface
      */
     glsl.generateShader = generateShader;
+    glsl.ast.spacer = ' ';
+    glsl.ast.indent = '    ';
+    glsl.ast.currentIndent = '';
+    glsl.ast.lineBreak = '\n';
+    glsl.ast.lineTerminator = ';' + glsl.ast.lineBreak;
+
+    function add( code ) {
+        irs.push( code );
+    }
+
+    function addLineStart( code ) {
+        var indent = '';
+
+        for( var x = 0; x < indent; x++ ) {
+            indent += glsl.ast.indent;
+        }
+
+        add( indent );
+        add( code );
+    }
+
+    function addLine( code, unterimnated ) {
+        addLineStart( code );
+        
+        if( !unterimnated ) {
+            irs.push( glsl.ast.lineTerminator );
+        }
+    }
 
 }(glsl, StdIO));

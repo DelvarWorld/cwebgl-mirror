@@ -187,52 +187,8 @@ var glsl = (function(ARB) {
 			this.symbols = this.prepareSymbols();
 
 			return this.symbols;
-		},
-
-		compile : function(source, target) {
-			var status, irs;
-
-			if (!initialized) {
-				this.initialize();
-				initialized = true;
-			}
-
-			//reset output
-			this.output = null;
-			this.errors = [];
-			this.symbols = null;
-			this.state = new parse_state(target);
-
-			//preprocess
-			source = this.preprocess(source, this.state);
-			if (!source) {
-				return false;
-			}
-
-			//scan/parse
-			lexer.setInput(source);
-			//need to get errors here
-			if (this.parser.yyparse(this.state) != 0) {
-				return false;
-			}
-
-			//generate IR code
-			irs = this.generate_ir(this.state);
-			if (!irs) {
-				return false;
-			}
-
-			//optimize
-			//@todo:
-
-			//generate ARB code
-			this.output = this.generate_arb(irs, this.state);
-
-			this.symbols = this.prepareSymbols();
-
-			status = (this.output ? true : false)
-			return status;
 		}
+
 	};
 
 	return glsl;
