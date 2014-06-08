@@ -1,0 +1,163 @@
+<html>
+    <head>
+    <script src="library/jClass/jClass.js" type="text/javascript" charset="utf-8"></script>
+    <script src="library/TypedArray/TypedArray.js" type="text/javascript" charset="utf-8"></script>
+    <script src="library/stdio/stdio.js" type="text/javascript" charset="utf-8"></script>
+    <!--<script src="drivers/cnvGL/gpu/gpu.js" type="text/javascript" charset="utf-8"></script>-->
+
+    <script src="glsl/ARB/ARB.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ARB/instruction.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ARB/javascript.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ARB/parse.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/glsl.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/symbol.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/preprocessor.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/lexer.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/lexer_extern.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/parser.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/builtin.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ast.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/type.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ir.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/ir_generator.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/generator.js" type="text/javascript" charset="utf-8"></script>
+    <script src="glsl/linker/linker.js" type="text/javascript" charset="utf-8"></script>
+    <script type="text/javascript" charset="utf-8">
+
+        function getShader(gl, id) {
+            var shaderScript = document.getElementById(id);
+            if (!shaderScript) {
+                return null;
+            }
+    
+            var str = "";
+            var k = shaderScript.firstChild;
+            while (k) {
+                if (k.nodeType == 3) {
+                    str += k.textContent;
+                }
+                k = k.nextSibling;
+            }
+    
+            var shader;
+            if (shaderScript.type == "x-shader/x-fragment") {
+                shader = gl.createShader(gl.FRAGMENT_SHADER);
+            } else if (shaderScript.type == "x-shader/x-vertex") {
+                shader = gl.createShader(gl.VERTEX_SHADER);
+            } else {
+                return null;
+            }
+    
+            gl.shaderSource(shader, str);
+            gl.compileShader(shader);
+    
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                alert(gl.getShaderInfoLog(shader));
+                return null;
+            }
+    
+            return shader;
+        }
+
+        </script>
+
+<script id="per-fragment-lighting-fs" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+ 
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+ 
+    uniform float uMaterialShininess;
+ 
+    uniform bool uShowSpecularHighlights;
+    uniform bool uUseLighting;
+    uniform bool uUseTextures;
+ 
+    uniform vec3 uAmbientColor;
+ 
+    uniform vec3 uPointLightingLocation;
+    uniform vec3 uPointLightingSpecularColor;
+    uniform vec3 uPointLightingDiffuseColor;
+ 
+    uniform sampler2D uSampler;
+ 
+ 
+    void main(void) {
+        vec3 lightWeighting;
+        if (!uUseLighting) {
+            lightWeighting = vec3(1.0, 1.0, 1.0);
+        } else {
+            vec3 lightDirection = normalize(uPointLightingLocation - vPosition.xyz);
+            vec3 normal = normalize(vTransformedNormal);
+ 
+            float specularLightWeighting = 0.0;
+            if (uShowSpecularHighlights) {
+                vec3 eyeDirection = normalize(-vPosition.xyz);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+ 
+                specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), uMaterialShininess);
+            }
+ 
+            float diffuseLightWeighting = max(dot(normal, lightDirection), 0.0);
+            lightWeighting = uAmbientColor
+                + uPointLightingSpecularColor * specularLightWeighting
+                + uPointLightingDiffuseColor * diffuseLightWeighting;
+        }
+ 
+        vec4 fragmentColor;
+        if (uUseTextures) {
+            fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        } else {
+            fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+        gl_FragColor = vec4(fragmentColor.rgb * lightWeighting, fragmentColor.a);
+    }
+</script>
+
+    </head>
+
+    <canvas id="c"></canvas>
+
+    <script>
+(function(glsl) {
+
+    var sprintf = glsl.sprintf = StdIO.sprintf;
+	
+    glsl.ir_operation_table = {"23":{"4":{"type":4,"code":["ABS %1.x %2.x","SGE %1.x 0.0 %1.x"]}},"3":{"1":{"1":{"type":1,"code":["ADD %1.x %2.x %3.x"]}},"6":{"6":{"type":6,"code":["ADD %1.xyz %2.xyz %3.xyz"]}},"7":{"7":{"type":7,"code":["ADD %1 %2 %3"]}}},"10":{"1":{"1":{"type":1,"code":["SLT %1.x %2.x %3.x"]}}},"5":{"1":{"1":{"type":1,"code":["MUL %1.x %2.x %3.x"]},"6":{"type":6,"code":["MUL %1.xyz %2.x %3.xyz"]}},"6":{"1":{"type":6,"code":["MUL %1.xyz %2.xyz %3.x"]},"6":{"type":6,"code":["MUL %1.xyz %2.xyz %3.xyz"]}},"7":{"7":{"type":7,"code":["MUL %1 %2 %3"]}},"21":{"6":{"type":6,"code":["MUL %1.xyz %2[0].xyz %3.x","MAD %1.xyz %2[1].xyz %3.y %1","MAD %1.xyz %2[2].xyz %3.z %1"]}},"25":{"7":{"type":7,"code":["MUL %1 %2[0] %3.x","MAD %1 %2[1] %3.y %1","MAD %1 %2[2] %3.z %1","MAD %1 %2[3] %3.w %1"]},"25":{"type":25,"code":["MUL %1[0] %2[0] %3[0].x","MAD %1[0] %2[1] %3[0].y %1[0]","MAD %1[0] %2[2] %3[0].z %1[0]","MAD %1[0] %2[3] %3[0].w %1[0]","MUL %1[1] %2[0] %3[1].x","MAD %1[1] %2[1] %3[1].y %1[1]","MAD %1[1] %2[2] %3[1].z %1[1]","MAD %1[1] %2[3] %3[1].w %1[1]","MUL %1[2] %2[0] %3[2].x","MAD %1[2] %2[1] %3[2].y %1[2]","MAD %1[2] %2[2] %3[2].z %1[2]","MAD %1[2] %2[3] %3[2].w %1[2]","MUL %1[3] %2[0] %3[3].x","MAD %1[3] %2[1] %3[3].y %1[3]","MAD %1[3] %2[2] %3[3].z %1[3]","MAD %1[3] %2[3] %3[3].w %1[3]"]}}},"4":{"7":{"7":{"type":7,"code":["SUB %1 %2 %3"]}},"6":{"6":{"type":6,"code":["SUB %1.xyz %2.xyz %3.xyz"]}}},"41":{"dot":{"6":{"6":[{"type":1,"code":["DP3 %1 %2 %3"]}]},"7":{"7":[{"type":1,"code":["DP4 %1 %2 %3"]}]}},"max":{"1":{"1":[{"type":1,"code":["MAX %1.x %2.x %3.x"]}]}},"normalize":{"6":[{"type":6,"code":["DP3 %1.x %2 %2","RSQ %1.x %1.x","MUL %1.xyz %2.xyz %1.x"]}],"7":[{"type":7,"code":["DP4 %1.x %2 %2","RSQ %1.x %1.x","MUL %1 %2 %1.x"]}]},"pow":{"1":{"1":[{"type":1,"code":["POW %1.x %2.x %3.x"]}]}},"reflect":{"6":{"6":[{"type":6,"code":["DP3 %1.x %3 %2","MUL %1.xyz %3 %1.x","MAD %1.xyz -%1 2.0 %2"]}]}},"texture2D":{"27":{"5":[{"type":7,"code":["TEX %1 %3 %2 2D"]}]}}}};
+    glsl.type.base = [false,1,2,3,4,1,1,1,4,4,4,2,2,2,3,3,3,1,1,1,1,1,1,1,1,1];
+	
+	function function_by_path(state, func, table, path) {
+		var t, entry;
+		for (t in table) {
+			t = parseInt(t);
+			if (t == 0) {
+				entry = state.symbols.add_function(func, table[t].type, path.slice(0));
+				entry.code = table[t].code;
+			} else {
+				path.push(parseInt(t));
+				function_by_path(state, func, table[t], path);
+				path.pop();
+			}
+		}
+	}
+
+	glsl.parser.initialize_functions = function(state) {
+		var table, f, path, t;
+		table = glsl.ir_operation_table[glsl.ast.operators.function_call];
+		for (f in table) {
+			function_by_path(state, f, table[f], []);
+		}
+	};
+
+}(glsl));
+
+    var gl = document.getElementById( 'c' ).getContext("experimental-webgl", {native:false});
+    var shader = getShader( gl, 'per-fragment-lighting-fs' );
+
+    glsl.compile( document.getElementById('per-fragment-lighting-fs'), 0 );
+
+    </script>
+</html>

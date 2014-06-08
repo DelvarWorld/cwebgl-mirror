@@ -28,8 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     var IR = glsl.IR;
     var sprintf = StdIO.sprintf;
 
-
-    var irs, ir, swizzles, conditional;
+    var irs, ir, swizzles, conditional, state;
 
     conditional = [];
 
@@ -88,16 +87,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         e.Type = op.type_specifier;
         e.Dest = [];
-        
+
         e.Dest = irs.getTemp('$tempv');
 
         for (di = 0; di < ds; di++) {
 
             //build next subexpression
-            if (si == 0) {
+            if (si === 0) {
 
                 if (!se[sei]) {
-                    throw_error("Not enough parameters to constructor", e);             
+                    throw_error("Not enough parameters to constructor", e);
                 }
 
                 expression(se[sei]);
@@ -120,7 +119,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
             } else {
                 //value
                 if (s[0].match(/^\-?[0-9]+(\.[0-9]+)?/)) {
-                    s = s[0];   
+                    s = s[0];
                 } else {
                     s = sprintf("%s.%s", s[0], swizzles[0][si]);
                 }
@@ -128,7 +127,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
             ir = new IR('MOV', d, s);
             irs.push(ir);
-            
+
             //used up all components in current expression, move on to the next one
             si++;
             if (si >= ses) {
@@ -149,7 +148,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         type = dl.type;
         if (type.qualifier) {
-            qualifier = type.qualifier.flags.q
+            qualifier = type.qualifier.flags.q;
             qualifier_name = glsl.type.qualifiers[qualifier];
         }
 
@@ -199,7 +198,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     function expression(e) {
 
         if (!e) {
-            return; 
+            return;
         }
 
         //operator
@@ -237,7 +236,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         }
 
         if (conditional.length > 0) {
-            cond = conditional[conditional.length - 1]; 
+            cond = conditional[conditional.length - 1];
         }
 
         if (se[0].Type != se[1].Type) {
@@ -247,7 +246,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         entry = state.symbols.get_variable(se[0].Dest);
         if (entry.constant) {
-            throw_error(sprintf("Cannot assign value to constant %s", se[0].Dest), e);  
+            throw_error(sprintf("Cannot assign value to constant %s", se[0].Dest), e);
         }
 
         size = glsl.type.size[e.Type];
@@ -299,7 +298,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         if (swz) {
             new_swz = "";
             for (i = 0; i < field.length; i++) {
-                s = swz.indexOf(field[i])
+                s = swz.indexOf(field[i]);
                 if (s == -1) {
                     swz = false;
                     break;
@@ -323,7 +322,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                 return;
             }
 
-            e.Dest = sprintf("%s.%s", e.Dest, new_swz)
+            e.Dest = sprintf("%s.%s", e.Dest, new_swz);
         }
     }
 
@@ -334,8 +333,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      */
     function expression_function(e) {
         var i, func, se, def, def_names, dest, entry;
-        
-        func = e.subexpressions[0].primary_expression.identifier
+
+        func = e.subexpressions[0].primary_expression.identifier;
         def = [];
         def_names = [];
         dest = [];
@@ -389,9 +388,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
         e.Type = table.type;
 
-        if (len <= 4) {
+        //if (len <= 4) {
             //e.Dest += sprintf(".%s", swizzles[0].substring(0, glsl.type.size[e.Type]));
-        }
+        //}
 
         parseCode(table.code, dest);
     }
@@ -409,7 +408,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
             expression(se[1]);
             expression(se[2]);
         }
-        
+
         ops = glsl.ast.operators;
 
         switch (e.oper) {
@@ -422,9 +421,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
 
             case ops.neg:
                 if (se[0].Dest[0] != '-') {
-                    e.Dest = "-" + se[0].Dest;  
+                    e.Dest = "-" + se[0].Dest;
                 } else {
-                    e.Dest = se[0].Dest.substring(1);   
+                    e.Dest = se[0].Dest.substring(1);
                 }
                 e.Type = se[0].Type;
                 break;
@@ -455,14 +454,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                 if (e.cons) {
                     constructor(e, se[0], e.expressions);
                 } else {
-                    expression_function(e); 
+                    expression_function(e);
                 }
                 break;
 
             case ops.field_selection:
                 expression_field(e, se);
                 break;
-                
+
             default:
                 throw_error(sprintf("Could not translate unknown expression %s (%s)", e.typeOf(), glsl.ast.op_names[e.oper]), e);
         }
@@ -522,7 +521,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      * @param   ast_node    ast_node that represents an operator expression
      */
     function _function(f) {
-        var i, name, param;
+        var i, name, param, entry;
 
         //generate
         name = f.identifier;
@@ -648,7 +647,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         n += (n.toString().indexOf('.') == -1) ? ".0" : "";
         return n;
     }
-    
+
     /**
      * Returns the base type of the type
      *
@@ -694,11 +693,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      */
     function splitOperand(oprd) {
         oprd = oprd.split(".");
-        if (!oprd[1] || oprd[1].match(/[xyzw]+/)) {
-            
-        } else {
+        //if (!oprd[1] || oprd[1].match(/[xyzw]+/)) {
+
+        //} else {
             oprd = [oprd.join(".")];
-        }
+        //}
         return oprd;
     }
 
@@ -723,7 +722,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
                     oprd[0] = dest;
                 }
             }
-            oprds[i] = oprd[0]; 
+            oprds[i] = oprd[0];
         }
 
         repl = [];
@@ -760,13 +759,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      *
      * @param   object    Symbol table
      */
-    function symbols(symbols) {
+    function symbols( symbolTable ) {
         var i, entry;
-        for (i in symbols.table) {
-            entry = symbols.table[i];
-            if (entry.typedef == glsl.symbol_table_entry.typedef.variable) {
+        for (i in  symbolTable .table) {
+            entry = symbolTable .table[i];
+            //if (entry.typedef == glsl.symbol_table_entry.typedef.variable) {
                 //console.log(entry);
-            }
+            //}
         }
     }
 
@@ -778,7 +777,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
      *
      * @return  string
      */
-    function generate_ir(new_state) {
+    function generateShader(new_state) {
         var i;
 
         state = new_state;
@@ -795,7 +794,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
         }
 
         if (glsl.errors.length > 0) {
-            return false;   
+            return false;
         }
 
         return irs;
@@ -804,8 +803,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE      OR OTHER DEALINGS IN THE SOFTWARE.
     /**
      * External interface
      */
-    glsl.generate_ir = generate_ir;
+    glsl.generateShader = generateShader;
 
 }(glsl, StdIO));
-
-
