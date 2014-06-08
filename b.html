@@ -1,8 +1,6 @@
 <html>
     <head>
 
-    <script src="cWebGL.min.js" type="text/javascript" charset="utf-8"></script>
-
 <script id="per-fragment-lighting-fs" type="x-shader/x-fragment">
     #ifdef GL_ES
     precision highp float;
@@ -87,10 +85,8 @@
 
     <canvas id="c"></canvas>
 
-    <script>
+    <script src="cWebGL.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="compile.js" type="text/javascript" charset="utf-8"></script>
+    <script src="main.js" type="text/javascript" charset="utf-8"></script>
 
-    var ast = glsl.why( document.getElementById('per-fragment-lighting-fs').innerText, 0 );
-    var ast = glsl.why( document.getElementById('per-fragment-lighting-vs').innerText, 0 );
-
-    </script>
 </html>
